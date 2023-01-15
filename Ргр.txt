@@ -1,0 +1,333 @@
+#include <iostream>
+#include <list>
+#include <vector>
+#include <conio.h>
+#include <functional>
+
+using namespace std;
+
+class Base
+{
+private:
+   int id; // Id никто менять не должен, только читать
+
+public:
+   Base(int id) : id(id) {}
+
+   int GetID()
+   {
+      return id;
+   }
+
+   virtual void Print() {}
+   virtual void Edit() {}
+
+};
+
+list<Base*> products;
+list<Base*> clients;
+list<Base*> orders;
+
+// Поиск записи в списке по id
+Base* FindById(list<Base*>* list, int id)
+{
+   for (auto& line : *list)
+   {
+      if (line->GetID() == id)
+         return line;
+   }
+   return nullptr;
+}
+
+class Client : public Base
+{
+public:
+   string name;
+   string phone;
+
+   Client(int id) : Base(id) {}
+
+   void Print()
+   {
+      cout << "id (" << GetID() << ") " << name << " " << phone << endl;
+   }
+
+   void Edit()
+   {
+      cout << "Введите имя: ";
+      cin >> name;
+      cout << "Введите номер телефона: ";
+      cin >> phone;
+   }
+
+};
+
+class Product : public Base
+{
+public:
+   string name;
+   float price;
+
+   Product(int id) : Base(id) {}
+
+   void Print()
+   {
+      cout << "id (" << GetID() << ") " << name << " " << price << " руб." << endl;
+   }
+
+   void Edit()
+   {
+      cout << "Введите название: ";
+      cin >> name;
+      cout << "Введите цену: ";
+      cin >> price;
+   }
+
+};
+
+class Order : public Base
+{
+public:
+   int productId;
+   int clientId;
+   int quantity;
+
+   Order(int id) : Base(id) {}
+
+   void Print()
+   {
+      // Пытаемся найти клиента и товар по их id
+      Client* client = (Client*)FindById(&clients, clientId);
+      Product* product = (Product*)FindById(&products, productId);
+      cout << "id (" << GetID() << ")";
+
+      cout << " Клиент: ";
+      if (client == nullptr)
+         cout << "Не найден";
+      else
+         cout << client->name;
+      cout << " (" << clientId << ")";
+
+      cout << " Продукт: ";
+      if (product == nullptr)
+         cout << "Не найден";
+      else
+         cout << product->name;
+      cout << " (" << productId << ")";
+
+      cout << " Количество: " << quantity;
+      if (product != nullptr)
+      {
+         cout << " Итоговая цена: " << product->price * quantity;
+      }
+      cout << endl;
+   }
+
+   void Edit()
+   {
+      cout << "Введите Id клиента: ";
+      cin >> clientId;
+      cout << "Введите Id продукта: ";
+      cin >> productId;
+      cout << "Введите количество: ";
+      cin >> quantity;
+   }
+};
+
+struct MenuLine
+{
+   string name;               // название действия кнопки
+   function<void()> callBack; // переменная с указанием на функцию, которая вызывает эта кнопка
+
+   MenuLine(string name, function<void()> callBack) : name(name), callBack(callBack) {}
+};
+
+void Menu(string name, vector<MenuLine> lines)
+{
+   while (true)
+   {
+      system("cls"); // очищаем экран консоли
+
+      cout << name << endl;
+      cout << "0 - Выход" << endl;
+      int i = 1;
+      // выводи номер и название кнопки
+      for (auto& line : lines)
+      {
+         cout << i << " - " << line.name << endl;
+         ++i;
+      }
+
+      // считываем нажатую клавишу. (нам нужны цифры от 0 до 9). Поэтому вычитаем из числа клавишу '1'
+      int btn = _getch() - '1';
+
+      if (btn == -1) break; // -1 это '0'. на 0 всегда выход
+
+      if (btn >= lines.size()) continue; // если число больше, чем кнопок то возвращаемся в начало цикла
+
+      system("cls"); // снова очищаем экран
+
+      lines[btn].callBack(); // вызываем действие назначенное на эту кнопку
+   }
+}
+
+void Show(list<Base*>* list, string name)
+{
+   cout << "Содержимое списка: " << name << " " << list->size() << endl;
+   // Проходимся по всем записям в списке и выводим на экран
+   for (auto& line : *list)
+   {
+      line->Print();
+   }
+   _getch();
+}
+
+void Add(list<Base*>* list, string name)
+{
+   Base* line;
+   // Выбираем id для новой записи. должен быть больше чем у последней записи или 0, если записей ещё нет
+   int id = list->empty() ? 0 : list->back()->GetID() + 1;
+   
+   // Сравниваем список с другими списками, чтобы узнать какой тип создавать
+   if (*list == products)
+      line = new Product(id);
+   else if (*list == clients)
+      line = new Client(id);
+   else
+      line = new Order(id);
+
+   line->Edit();           // редактирем новую запись
+   list->push_back(line);  // добавляем новую запись в конец списка
+   cout << "Запись добавлена: " << endl;
+   line->Print();
+   _getch();
+}
+
+void Edit(list<Base*>* list, string name)
+{
+   cout << "Редактирование записи из списка: " << name << endl;
+   cout << "Введите Id: ";
+   int id;
+   cin >> id;
+
+   Base* line = FindById(list, id);
+   if (line == nullptr)
+      cout << "Запись не найдена" << endl;
+   else
+   {
+      line->Print();
+      line->Edit();
+      cout << "Запись обновлена" << endl;
+   }
+   _getch();
+}
+
+void Remove(list<Base*>* list, string name)
+{
+   cout << "Удаления записи из списка: " << name << endl;
+   cout << "Введите Id: ";
+   int id;
+   cin >> id;
+
+   Base* line = FindById(list, id);
+   if (line == nullptr)
+      cout << "Запись не найдена" << endl;
+   else
+   {
+      cout << "Запись удалена" << endl;
+      list->remove(line);
+      delete line;
+   }
+   _getch();
+}
+
+void ListActions(list<Base*>* list, string name)
+{
+   vector<MenuLine> lines;
+   lines.push_back(MenuLine("Показать", [list, name] {Show(list, name);}));
+   lines.push_back(MenuLine("Добавить", [list, name] {Add(list, name); }));
+   lines.push_back(MenuLine("Изменить", [list, name] {Edit(list, name); }));
+   lines.push_back(MenuLine("Удалить",  [list, name] {Remove(list, name); }));
+
+   Menu("Меню действий над списком: " + name, lines);
+}
+
+void SelectList()
+{
+   vector<MenuLine> lines;
+   lines.push_back(MenuLine("Клиенты", [] {ListActions(&clients, "Клиенты");}));
+   lines.push_back(MenuLine("Товары", [] {ListActions(&products, "Продукты");}));
+   lines.push_back(MenuLine("Заказы", [] {ListActions(&orders, "Заказы"); }));
+
+   Menu("Меню выбора списка", lines);
+}
+
+
+int main()
+{
+   system("chcp 1251"); // Включает отображения русского языка в консоле
+
+   // создаем клиентов
+   Client* client = new Client(0);
+   client->name = "Иванов Иван Иванович";
+   client->phone = "+76665554433";
+   clients.push_back(client);
+
+   client = new Client(1);
+   client->name = "Иванов Петр Петрович";
+   client->phone = "+76665554433";
+   clients.push_back(client);
+
+   client = new Client(2);
+   client->name = "Иванов Ваня Иванович";
+   client->phone = "+76665554433";
+   clients.push_back(client);
+
+   // создаем товары
+   Product* product = new Product(0);
+   product->name = "Гроб из красного дерева";
+   product->price = 900000;
+   products.push_back(product);
+
+   product = new Product(1);
+   product->name = "Гроб из картона";
+   product->price = 1000;
+   products.push_back(product);
+
+   product = new Product(2);
+   product->name = "Розовый гроб из белого дерева";
+   product->price = 555555;
+   products.push_back(product);
+   
+   // создаем заказы
+   Order* order = new Order(0);
+   order->clientId = 0;
+   order->productId = 0;
+   order->quantity = 1;
+   orders.push_back(order);
+
+   order = new Order(1);
+   order->clientId = 0;
+   order->productId = 2;
+   order->quantity = 1;
+   orders.push_back(order);
+
+   order = new Order(2);
+   order->clientId = 1;
+   order->productId = 1;
+   order->quantity = 3;
+   orders.push_back(order);
+
+   order = new Order(3);
+   order->clientId = 2;
+   order->productId = 1;
+   order->quantity = 2;
+   orders.push_back(order);
+
+   SelectList(); // переходим в меню выбора списка
+
+   return 0;
+}
+
+
+
